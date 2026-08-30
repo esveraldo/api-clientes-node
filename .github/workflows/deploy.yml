@@ -1,0 +1,72 @@
+name: CI/CD - API Clientes
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+
+  build-docker:
+
+    name: Build e Push Docker Hub
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+
+      - name: Build da imagem
+        run: |
+          docker build \
+          -t ${{ secrets.DOCKERHUB_USERNAME }}/api-clientes-node:latest \
+          .
+
+
+      - name: Push para Docker Hub
+        run: |
+          docker push \
+          ${{ secrets.DOCKERHUB_USERNAME }}/api-clientes-node:latest
+
+
+  deploy-aws:
+
+    name: Deploy Elastic Beanstalk
+
+    needs: build-docker
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+
+      - name: Configurar credenciais AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+
+      - name: Deploy Elastic Beanstalk
+        uses: aws-actions/aws-elasticbeanstalk-deploy@v1.0.0
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          application-name: api-clientes-node
+          environment-name: Api-clientes-node-env
